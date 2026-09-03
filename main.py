@@ -3,7 +3,7 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# Logging setup for monitoring container health on Render
+# Logging setup for monitoring container health on Railway
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -15,16 +15,16 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Triggered on /start or when users enter from Telegram Ads."""
     keyboard = [
-        [InlineKeyboardButton("ℹ️ About Us", callback_data="about")],
-        [InlineKeyboardButton("❓ Frequently Asked Questions", callback_data="faq")],
-        [InlineKeyboardButton("📩 Contact Support", callback_data="contact")],
+        [InlineKeyboardButton("ℹ️ เกี่ยวกับเรา", callback_data="about")],
+        [InlineKeyboardButton("❓ คำถามที่พบบ่อย (FAQ)", callback_data="faq")],
+        [InlineKeyboardButton("📩 ติดต่อฝ่ายบริการลูกค้า", callback_data="contact")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     welcome_text = (
-        "Welcome! 👋\n\n"
-        "We offer specialized services to streamline your operations and workflow.\n"
-        "Please choose an option below to learn more about our services."
+        "ยินดีต้อนรับ! 👋\n\n"
+        "เราให้บริการโซลูชันและการสนับสนุนเพื่อช่วยจัดการกระบวนการทำงานของคุณ\n"
+        "โปรดเลือกเมนูด้านล่างเพื่อดูรายละเอียดเพิ่มเติม"
     )
     
     if update.message:
@@ -35,64 +35,63 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Mandatory /help response required by Telegram Ads Policy."""
     help_text = (
-        "Available commands:\n"
-        "/start - Launch the main menu\n"
-        "/about - Learn more about our company\n"
-        "/help - Display this support menu\n\n"
-        "You can also use the inline buttons in the chat to navigate."
+        "คำสั่งที่ใช้งานได้:\n"
+        "/start - เปิดเมนูหลัก\n"
+        "/about - ข้อมูลเกี่ยวกับเรา\n"
+        "/help - แสดงเมนูช่วยเหลือนี้\n\n"
+        "คุณสามารถใช้ปุ่มด้านล่างในข้อความเพื่อเลือกรายการที่ต้องการได้ทันที"
     )
     await update.message.reply_text(help_text)
 
 async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Mandatory /about response detailing service identity."""
     about_text = (
-        "About Our Platform:\n\n"
-        "We assist businesses and individuals with automated workflow solutions, "
-        "consulting, and technical support. Our goal is to provide reliable, "
-        "transparent services tailored to your needs."
+        "เกี่ยวกับแพลตฟอร์มของเรา:\n\n"
+        "เราให้บริการเครื่องมือและการสนับสนุนทางเทคนิคเพื่อเพิ่มประสิทธิภาพการทำงาน "
+        "เป้าหมายของเราคือการให้บริการที่แม่นยำ โปร่งใส และตอบโจทย์ความต้องการของคุณ"
     )
     await update.message.reply_text(about_text)
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles inline menu navigation to ensure clean interaction."""
+    """Handles inline menu navigation."""
     query = update.callback_query
     await query.answer()
 
-    keyboard = [[InlineKeyboardButton("« Back to Main Menu", callback_data="main_menu")]]
+    keyboard = [[InlineKeyboardButton("« กลับสู่เมนูหลัก", callback_data="main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     if query.data == "about":
         text = (
-            "📌 About Us:\n\n"
-            "We build practical digital management tools. Use this bot to browse FAQs "
-            "or connect directly with our support staff."
+            "📌 เกี่ยวกับเรา:\n\n"
+            "เราพัฒนาเครื่องมือดิจิทัลสำหรับการจัดการ คุณสามารถเรียกดูคำถามที่พบบ่อย "
+            "หรือติดต่อทีมงานฝ่ายบริการลูกค้าของเราได้โดยตรงผ่านบอทนี้"
         )
         await query.edit_message_text(text=text, reply_markup=reply_markup)
 
     elif query.data == "faq":
         faq_keyboard = [
-            [InlineKeyboardButton("How do I contact support?", callback_data="faq_contact")],
-            [InlineKeyboardButton("What are your operating hours?", callback_data="faq_hours")],
-            [InlineKeyboardButton("« Back to Main Menu", callback_data="main_menu")],
+            [InlineKeyboardButton("ติดต่อฝ่ายบริการได้อย่างไร?", callback_data="faq_contact")],
+            [InlineKeyboardButton("เวลาทำการคือช่วงไหน?", callback_data="faq_hours")],
+            [InlineKeyboardButton("« กลับสู่เมนูหลัก", callback_data="main_menu")],
         ]
         await query.edit_message_text(
-            "Frequently Asked Questions:\nSelect a topic below:",
+            "คำถามที่พบบ่อย (FAQ):\nโปรดเลือกหัวข้อที่ต้องการทราบ:",
             reply_markup=InlineKeyboardMarkup(faq_keyboard)
         )
 
     elif query.data == "faq_contact":
-        text = "You can contact our support team directly via the 'Contact Support' button on the home screen."
+        text = "คุณสามารถติดต่อทีมงานได้โดยตรงผ่านปุ่ม 'ติดต่อฝ่ายบริการลูกค้า' ที่หน้าเมนูหลัก"
         await query.edit_message_text(text=text, reply_markup=reply_markup)
 
     elif query.data == "faq_hours":
-        text = "Our support team operates Monday through Friday, 09:00 - 18:00 UTC."
+        text = "ฝ่ายบริการลูกค้าของเราเปิดทำการวันจันทร์ - วันศุกร์ เวลา 09:00 - 18:00 น. (UTC)"
         await query.edit_message_text(text=text, reply_markup=reply_markup)
 
     elif query.data == "contact":
         text = (
-            "📩 Support Channel:\n\n"
-            "If you have inquiries, please leave a brief message, and our representative "
-            "will respond within 24 hours."
+            "📩 ติดต่อฝ่ายบริการลูกค้า:\n\n"
+            "หากคุณมีข้อสงสัย โปรดทิ้งข้อความไว้ "
+            "ทีมงานของเราจะติดต่อกลับภายใน 24 ชั่วโมง"
         )
         await query.edit_message_text(text=text, reply_markup=reply_markup)
 
