@@ -1,120 +1,209 @@
 import os
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from aiohttp import web
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# Logging setup for monitoring container health on Railway
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+# =========================
+# CONFIG
+# =========================
 
-# Retrieve Telegram Bot Token from Environment Variables
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TOKEN = os.getenv("BOT_TOKEN")
+PORT = int(os.getenv("PORT", "8080"))
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Triggered on /start or when users enter from Telegram Ads."""
-    keyboard = [
-        [InlineKeyboardButton("ℹ️ เกี่ยวกับเรา", callback_data="about")],
-        [InlineKeyboardButton("❓ คำถามที่พบบ่อย (FAQ)", callback_data="faq")],
-        [InlineKeyboardButton("📩 ติดต่อฝ่ายบริการลูกค้า", callback_data="contact")],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    welcome_text = (
-        "ยินดีต้อนรับ! 👋\n\n"
-        "เราให้บริการโซลูชันและการสนับสนุนเพื่อช่วยจัดการกระบวนการทำงานของคุณ\n"
-        "โปรดเลือกเมนูด้านล่างเพื่อดูรายละเอียดเพิ่มเติม"
-    )
-    
-    if update.message:
-        await update.message.reply_text(welcome_text, reply_markup=reply_markup)
-    elif update.callback_query:
-        await update.callback_query.edit_message_text(welcome_text, reply_markup=reply_markup)
+if not TOKEN:
+    raise ValueError("BOT_TOKEN environment variable is missing")
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Mandatory /help response required by Telegram Ads Policy."""
-    help_text = (
-        "คำสั่งที่ใช้งานได้:\n"
-        "/start - เปิดเมนูหลัก\n"
-        "/about - ข้อมูลเกี่ยวกับเรา\n"
-        "/help - แสดงเมนูช่วยเหลือนี้\n\n"
-        "คุณสามารถใช้ปุ่มด้านล่างในข้อความเพื่อเลือกรายการที่ต้องการได้ทันที"
-    )
-    await update.message.reply_text(help_text)
+logging.basicConfig(level=logging.INFO)
 
-async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Mandatory /about response detailing service identity."""
-    about_text = (
-        "เกี่ยวกับแพลตฟอร์มของเรา:\n\n"
-        "เราให้บริการเครื่องมือและการสนับสนุนทางเทคนิคเพื่อเพิ่มประสิทธิภาพการทำงาน "
-        "เป้าหมายของเราคือการให้บริการที่แม่นยำ โปร่งใส และตอบโจทย์ความต้องการของคุณ"
-    )
-    await update.message.reply_text(about_text)
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles inline menu navigation."""
-    query = update.callback_query
-    await query.answer()
 
-    keyboard = [[InlineKeyboardButton("« กลับสู่เมนูหลัก", callback_data="main_menu")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+# =========================
+# KEYBOARD
+# =========================
 
-    if query.data == "about":
-        text = (
-            "📌 เกี่ยวกับเรา:\n\n"
-            "เราพัฒนาเครื่องมือดิจิทัลสำหรับการจัดการ คุณสามารถเรียกดูคำถามที่พบบ่อย "
-            "หรือติดต่อทีมงานฝ่ายบริการลูกค้าของเราได้โดยตรงผ่านบอทนี้"
-        )
-        await query.edit_message_text(text=text, reply_markup=reply_markup)
-
-    elif query.data == "faq":
-        faq_keyboard = [
-            [InlineKeyboardButton("ติดต่อฝ่ายบริการได้อย่างไร?", callback_data="faq_contact")],
-            [InlineKeyboardButton("เวลาทำการคือช่วงไหน?", callback_data="faq_hours")],
-            [InlineKeyboardButton("« กลับสู่เมนูหลัก", callback_data="main_menu")],
+def main_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📚 Information",
+                    callback_data="information"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❓ Help",
+                    callback_data="help"
+                ),
+                InlineKeyboardButton(
+                    text="💬 Support",
+                    callback_data="support"
+                )
+            ]
         ]
-        await query.edit_message_text(
-            "คำถามที่พบบ่อย (FAQ):\nโปรดเลือกหัวข้อที่ต้องการทราบ:",
-            reply_markup=InlineKeyboardMarkup(faq_keyboard)
-        )
+    )
 
-    elif query.data == "faq_contact":
-        text = "คุณสามารถติดต่อทีมงานได้โดยตรงผ่านปุ่ม 'ติดต่อฝ่ายบริการลูกค้า' ที่หน้าเมนูหลัก"
-        await query.edit_message_text(text=text, reply_markup=reply_markup)
 
-    elif query.data == "faq_hours":
-        text = "ฝ่ายบริการลูกค้าของเราเปิดทำการวันจันทร์ - วันศุกร์ เวลา 09:00 - 18:00 น. (UTC)"
-        await query.edit_message_text(text=text, reply_markup=reply_markup)
+# =========================
+# COMMANDS
+# =========================
 
-    elif query.data == "contact":
-        text = (
-            "📩 ติดต่อฝ่ายบริการลูกค้า:\n\n"
-            "หากคุณมีข้อสงสัย โปรดทิ้งข้อความไว้ "
-            "ทีมงานของเราจะติดต่อกลับภายใน 24 ชั่วโมง"
-        )
-        await query.edit_message_text(text=text, reply_markup=reply_markup)
+@dp.message(Command("start"))
+async def start_handler(message: types.Message):
 
-    elif query.data == "main_menu":
-        await start(update, context)
+    text = (
+        "Welcome! 👋\n\n"
+        "This bot provides useful information and quick assistance.\n\n"
+        "Choose an option below to get started."
+    )
 
-def main() -> None:
-    if not TOKEN:
-        raise ValueError("Error: TELEGRAM_BOT_TOKEN environment variable not set.")
+    await message.answer(
+        text,
+        reply_markup=main_keyboard()
+    )
 
-    application = Application.builder().token(TOKEN).build()
 
-    # Core commands
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("about", about_command))
+@dp.message(Command("help"))
+async def help_handler(message: types.Message):
 
-    # Inline menu callbacks
-    application.add_handler(CallbackQueryHandler(button_handler))
+    text = (
+        "Available commands:\n\n"
+        "/start - Open the main menu\n"
+        "/help - View available commands\n"
+        "/info - Get information\n"
+        "/support - Contact support"
+    )
 
-    # Run polling loop
-    logger.info("Bot started successfully...")
-    application.run_polling(drop_pending_updates=True)
+    await message.answer(text)
+
+
+@dp.message(Command("info"))
+async def info_handler(message: types.Message):
+
+    text = (
+        "📚 Information\n\n"
+        "Use the menu to explore the available features "
+        "and information provided by this bot."
+    )
+
+    await message.answer(
+        text,
+        reply_markup=main_keyboard()
+    )
+
+
+@dp.message(Command("support"))
+async def support_handler(message: types.Message):
+
+    await message.answer(
+        "💬 Support\n\n"
+        "If you need assistance, please describe your question "
+        "and our support team will respond."
+    )
+
+
+# =========================
+# BUTTONS
+# =========================
+
+@dp.callback_query(lambda c: c.data == "information")
+async def information_callback(callback: types.CallbackQuery):
+
+    await callback.message.edit_text(
+        "📚 Information\n\n"
+        "Here you can provide your users with useful "
+        "information about your service or project.",
+        reply_markup=main_keyboard()
+    )
+
+    await callback.answer()
+
+
+@dp.callback_query(lambda c: c.data == "help")
+async def help_callback(callback: types.CallbackQuery):
+
+    await callback.message.edit_text(
+        "❓ Help\n\n"
+        "/start - Main menu\n"
+        "/info - Information\n"
+        "/support - Support",
+        reply_markup=main_keyboard()
+    )
+
+    await callback.answer()
+
+
+@dp.callback_query(lambda c: c.data == "support")
+async def support_callback(callback: types.CallbackQuery):
+
+    await callback.message.edit_text(
+        "💬 Support\n\n"
+        "Send your question here and we'll help you.",
+        reply_markup=main_keyboard()
+    )
+
+    await callback.answer()
+
+
+# =========================
+# NORMAL TEXT MESSAGES
+# =========================
+
+@dp.message()
+async def text_handler(message: types.Message):
+
+    await message.answer(
+        "Thanks for your message.\n\n"
+        "Use /start to open the main menu or /help "
+        "to see the available commands."
+    )
+
+
+# =========================
+# RAILWAY HEALTH SERVER
+# =========================
+
+async def health(request):
+    return web.Response(text="Bot is running")
+
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get("/", health)
+    app.router.add_get("/health", health)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+
+    site = web.TCPSite(
+        runner,
+        host="0.0.0.0",
+        port=PORT
+    )
+
+    await site.start()
+
+
+# =========================
+# MAIN
+# =========================
+
+async def main():
+
+    await start_web_server()
+
+    # Remove any old webhook so polling works correctly
+    await bot.delete_webhook(drop_pending_updates=True)
+
+    logging.info("Bot started")
+
+    await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
